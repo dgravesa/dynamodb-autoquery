@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
-	"github.com/dgravesa/dynamodb-helpers/query"
 )
 
 // Client is a querying client for DynamoDB that enables automatic index selection.
@@ -36,7 +35,7 @@ func NewClientWithMetadataProvider(
 	service dynamodbiface.DynamoDBAPI, provider TableMetadataProvider) *Client {
 	return &Client{
 		dynamodbService:         service,
-		metadataProvider:        newDescribeMetadataProvider(service),
+		metadataProvider:        provider,
 		tableIndexMetadataCache: map[string]*TableMetadata{},
 	}
 }
@@ -46,7 +45,7 @@ func NewClientWithMetadataProvider(
 // a DescribeTable call. The executing role must have permissions to describe the table, or this
 // call will return an error.
 func (client *Client) NewQuery(ctx context.Context,
-	tableName string, expr *query.Expression) (*query.Parser, error) {
+	tableName string, expr *Expression) (*Parser, error) {
 
 	// TODO: implement
 	return nil, fmt.Errorf("not yet implemented")

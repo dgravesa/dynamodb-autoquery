@@ -1,11 +1,10 @@
-package query
+package autoquery
 
 import (
 	"context"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 )
 
 // Parser is used for parsing query results.
@@ -17,20 +16,6 @@ type Parser struct {
 	limitPerPage          int
 
 	exclusiveStartkey map[string]*dynamodb.AttributeValue
-}
-
-// NewQuery initializes a query on a table's primary index.
-func NewQuery(svc dynamodbiface.DynamoDBAPI,
-	tableName string, expr *Expression) *Parser {
-	// TODO: implement
-	return &Parser{}
-}
-
-// NewIndexQuery initializes a query on the specified index of a table.
-func NewIndexQuery(svc dynamodbiface.DynamoDBAPI,
-	tableName string, indexName string, expr *Expression) *Parser {
-	// TODO: implement
-	return &Parser{}
 }
 
 // Next retrieves the next item in the query.

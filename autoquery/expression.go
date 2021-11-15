@@ -1,4 +1,4 @@
-package query
+package autoquery
 
 // Expression contains conditions and filters to be used in a query.
 type Expression struct {

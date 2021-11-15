@@ -1,6 +1,7 @@
 package autoquery
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
@@ -13,7 +14,8 @@ func newDescribeMetadataProvider(service dynamodbiface.DynamoDBAPI) *describeMet
 	return nil
 }
 
-func (p *describeMetadataProvider) FetchMetadata(tableName string) (*TableMetadata, error) {
+func (p *describeMetadataProvider) FetchMetadata(
+	ctx context.Context, tableName string) (*TableMetadata, error) {
 	// TODO: implement
 	return nil, fmt.Errorf("not yet implemented")
 }
