@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 )
 
@@ -46,16 +48,19 @@ func NewClientWithMetadataProvider(
 func (client *Client) NewQuery(ctx context.Context,
 	tableName string, expr *Expression) (*Parser, error) {
 
-	// pull metadata from cache
-	indexMetadata, err := client.pullIndexMetadata(ctx, tableName)
+	queryIndex, err := client.chooseIndex(ctx, tableName, expr)
+
+	queryInput, err := client.constructQueryInputGivenIndex(queryIndex)
 	if err != nil {
 		return nil, err
 	}
 
-	fmt.Println("TODO remove", indexMetadata)
+	queryInput.TableName = aws.String(tableName)
 
-	// TODO: implement
-	return nil, fmt.Errorf("not yet implemented")
+	return &Parser{
+		queryInput:    queryInput,
+		bufferedItems: []map[string]*dynamodb.AttributeValue{},
+	}, nil
 }
 
 func (client *Client) pullIndexMetadata(
@@ -74,4 +79,23 @@ func (client *Client) pullIndexMetadata(
 	}
 
 	return indexMetadata, nil
+}
+
+func (client *Client) chooseIndex(ctx context.Context,
+	tableName string, expr *Expression) (*tableIndex, error) {
+
+	// pull metadata from cache
+	_, err := client.pullIndexMetadata(ctx, tableName)
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, fmt.Errorf("not yet implemented")
+}
+
+func (client *Client) constructQueryInputGivenIndex(
+	queryIndex *tableIndex) (*dynamodb.QueryInput, error) {
+
+	// TODO: implement
+	return nil, fmt.Errorf("not yet implemented")
 }

@@ -16,6 +16,11 @@ type Parser struct {
 	limitPerPage          int
 
 	exclusiveStartkey map[string]*dynamodb.AttributeValue
+
+	queryInput *dynamodb.QueryInput
+
+	bufferedItems      []map[string]*dynamodb.AttributeValue
+	currentBufferIndex int
 }
 
 // Next retrieves the next item in the query.
