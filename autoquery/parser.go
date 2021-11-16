@@ -49,15 +49,15 @@ func (parser *Parser) UnsetMaxPagination() *Parser {
 
 // SetLimitPerPage sets the limit parameter for each page query call to DynamoDB.
 // The limit parameter restricts the number of evaluated items, not the number of returned items.
-func (parser *Parser) SetLimitPerPage(maxPages int) *Parser {
-	parser.maxPagesSpecified = true
-	parser.maxPages = maxPages
+func (parser *Parser) SetLimitPerPage(limit int) *Parser {
+	parser.limitPerPageSpecified = true
+	parser.limitPerPage = limit
 	return parser
 }
 
 // UnsetLimitPerPage unsets the limit parameter for each page query call to DynamoDB.
 func (parser *Parser) UnsetLimitPerPage() *Parser {
-	parser.maxPagesSpecified = false
+	parser.limitPerPageSpecified = false
 	return parser
 }
 
@@ -67,3 +67,12 @@ func (parser *Parser) SetExclusiveStartKey(
 	parser.exclusiveStartkey = exclusiveStartKey
 	return parser
 }
+
+// TODO: is this possible?
+// // LastParsedKey returns the key of the most recent item parsed by Next.
+// //
+// // The last parsed key may be used in a subsequent request as the exclusive start key in order
+// // to return additional values without needing to manage underlying pagination.
+// func (parser *Parser) LastParsedKey() map[string]*dynamodb.AttributeValue {
+// 	return parser.exclusiveStartkey
+// }
