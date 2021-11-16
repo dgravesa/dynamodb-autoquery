@@ -85,12 +85,32 @@ func (client *Client) chooseIndex(ctx context.Context,
 	tableName string, expr *Expression) (*tableIndex, error) {
 
 	// pull metadata from cache
-	_, err := client.pullIndexMetadata(ctx, tableName)
+	indexMetadata, err := client.pullIndexMetadata(ctx, tableName)
 	if err != nil {
 		return nil, err
 	}
 
-	return nil, fmt.Errorf("not yet implemented")
+	var bestIndex *tableIndex
+	bestIndexScore := 0.0
+
+	// select index with best score based on the expression
+	inviableErrs := []*ErrIndexNotViable{}
+	for _, index := range indexMetadata.Indexes {
+		indexScore, inviableErr := client.scoreIndexOnExpr(index, expr)
+		if inviableErr != nil {
+			inviableErrs = append(inviableErrs, inviableErr)
+		} else if indexScore > bestIndexScore {
+			bestIndex = index
+			bestIndexScore = indexScore
+		}
+	}
+
+	// no viable indexes found
+	if bestIndex == nil {
+		return nil, &ErrNoViableIndexes{IndexErrs: inviableErrs}
+	}
+
+	return bestIndex, nil
 }
 
 func (client *Client) constructQueryInputGivenIndex(
@@ -98,4 +118,17 @@ func (client *Client) constructQueryInputGivenIndex(
 
 	// TODO: implement
 	return nil, fmt.Errorf("not yet implemented")
+}
+
+func (client *Client) scoreIndexOnExpr(
+	index *tableIndex, expr *Expression) (float64, *ErrIndexNotViable) {
+
+	// TODO: implement
+
+	return 0.0, &ErrIndexNotViable{
+		IndexName: index.Name,
+		NotViableReasons: []string{
+			"not yet implemented",
+		},
+	}
 }
