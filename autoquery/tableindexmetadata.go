@@ -5,12 +5,16 @@ import (
 )
 
 type tableIndexMetadata struct {
-	Indexes map[string]*tableIndex
+	Indexes []*tableIndex
 }
 
 func parseTableIndexMetadata(table *dynamodb.TableDescription) *tableIndexMetadata {
 	output := &tableIndexMetadata{
-		Indexes: map[string]*tableIndex{},
+		Indexes: []*tableIndex{},
+	}
+
+	appendIndex := func(index *tableIndex) {
+		output.Indexes = append(output.Indexes, index)
 	}
 
 	// extract primary key index
@@ -21,7 +25,7 @@ func parseTableIndexMetadata(table *dynamodb.TableDescription) *tableIndexMetada
 		ConsistentReadable:    true,
 	}
 	tablePrimaryIndex.loadKeysFromSchema(table.KeySchema)
-	output.Indexes[tablePrimaryIndexName] = tablePrimaryIndex
+	appendIndex(tablePrimaryIndex)
 
 	tablePrimaryIndexKeys := tablePrimaryIndex.getKeys()
 
@@ -35,7 +39,7 @@ func parseTableIndexMetadata(table *dynamodb.TableDescription) *tableIndexMetada
 			}
 			index.loadKeysFromSchema(gsi.KeySchema)
 			index.loadAttributesFromProjection(gsi.Projection, tablePrimaryIndexKeys)
-			output.Indexes[index.Name] = index
+			appendIndex(index)
 		}
 	}
 
@@ -49,7 +53,7 @@ func parseTableIndexMetadata(table *dynamodb.TableDescription) *tableIndexMetada
 			}
 			index.loadKeysFromSchema(lsi.KeySchema)
 			index.loadAttributesFromProjection(lsi.Projection, tablePrimaryIndexKeys)
-			output.Indexes[index.Name] = index
+			appendIndex(index)
 		}
 	}
 
