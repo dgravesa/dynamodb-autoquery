@@ -2,8 +2,14 @@ package autoquery
 
 // Expression contains conditions and filters to be used in a query.
 type Expression struct {
+	filters map[string]expressionFilter
+
 	attributesSpecified bool
 	attributes          []string
+
+	orderSpecified bool
+	orderAttribute string
+	orderAscending bool
 
 	consistentRead bool
 }
@@ -70,6 +76,9 @@ func (expr *Expression) BeginsWith(attr string, prefix string) *Expression {
 // returned first. OrderBy may only be used on sort key attributes of indexes which satisfy all
 // other expression criteria.
 func (expr *Expression) OrderBy(attr string, ascending bool) *Expression {
+	expr.orderSpecified = true
+	expr.orderAttribute = attr
+	expr.orderAscending = ascending
 	return expr
 }
 
@@ -99,4 +108,19 @@ func (expr *Expression) ConsistentRead(val bool) *Expression {
 // TODO: implement
 // func (expr *Expression) Filter(filterExpr expression.ConditionBuilder) *Expression {
 // 	return expr
+// }
+
+// func (expr *Expression) getKeysOfFilterType(v interface{}) []string {
+// 	vType := reflect.TypeOf(v)
+
+// 	// create set of all keys with specific filters
+// 	keys := []string{}
+// 	for key, filter := range expr.filters {
+// 		fType := reflect.TypeOf(filter)
+// 		if fType == vType {
+// 			keys = append(keys, key)
+// 		}
+// 	}
+
+// 	return keys
 // }

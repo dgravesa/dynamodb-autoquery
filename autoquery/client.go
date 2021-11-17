@@ -3,6 +3,7 @@ package autoquery
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
@@ -117,7 +118,13 @@ func (client *Client) constructQueryInputGivenIndex(
 func (client *Client) scoreIndexOnExpr(
 	index *tableIndex, expr *Expression) (float64, *ErrIndexNotViable) {
 
-	// TODO: implement
+	indexNotViableReasons := client.listIndexViabilityInfractions(index, expr)
+	if len(indexNotViableReasons) > 0 {
+		return 0.0, &ErrIndexNotViable{
+			IndexName:        index.Name,
+			NotViableReasons: indexNotViableReasons,
+		}
+	}
 
 	return 0.0, &ErrIndexNotViable{
 		IndexName: index.Name,
@@ -125,4 +132,52 @@ func (client *Client) scoreIndexOnExpr(
 			"not yet implemented",
 		},
 	}
+}
+
+func (client *Client) listIndexViabilityInfractions(
+	index *tableIndex, expr *Expression) []string {
+
+	notViableReasons := []string{}
+
+	// for index to be viable, there must be an equals filter on the index's partition key
+	if !typesMatch(expr.filters[index.PartitionKey], &equalsFilter{}) {
+		reason := fmt.Sprintf(
+			"expression does not contain an equals condition on attribute: %s",
+			index.PartitionKey)
+		notViableReasons = append(notViableReasons, reason)
+	}
+
+	// if consistent read is specified, index must be consistent-readable
+	if expr.consistentRead && !index.ConsistentReadable {
+		notViableReasons = append(notViableReasons,
+			"global secondary index does not support consistent read")
+	}
+
+	// if order is specified, index must sort on that attribute
+	if expr.orderSpecified && expr.orderAttribute != index.SortKey {
+		reason := fmt.Sprintf(
+			"expression specifies order, which requires an index with sort key: %s",
+			index.SortKey)
+		notViableReasons = append(notViableReasons, reason)
+	}
+
+	// index must include selected attributes, or project all attributes if not specified
+	if expr.attributesSpecified {
+		indexMissingAttrs := []string{}
+		for _, selectedAttr := range expr.attributes {
+			if _, found := index.AttributeSet[selectedAttr]; !found {
+				indexMissingAttrs = append(indexMissingAttrs, selectedAttr)
+			}
+		}
+		if len(indexMissingAttrs) > 0 {
+			reason := fmt.Sprintf("index does not include attributes: %s",
+				strings.Join(indexMissingAttrs, ", "))
+			notViableReasons = append(notViableReasons, reason)
+		}
+	} else if !index.IncludesAllAttributes {
+		notViableReasons = append(notViableReasons,
+			"expression does not select attributes, so it requires an index that projects all")
+	}
+
+	return notViableReasons
 }
