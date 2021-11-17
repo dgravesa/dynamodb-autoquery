@@ -59,7 +59,12 @@ func (index *tableIndex) inferSparseness(tableSize int, threshold float64) {
 	if !index.IsComposite {
 		index.IsSparse = false
 	} else {
-		sparsenessRatio := float64(index.Size) / float64(tableSize)
+		var sparsenessRatio float64
+		if tableSize == 0 {
+			sparsenessRatio = 0.0
+		} else {
+			sparsenessRatio = float64(index.Size) / float64(tableSize)
+		}
 		index.IsSparse = (sparsenessRatio < threshold)
 	}
 }

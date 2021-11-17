@@ -33,7 +33,8 @@ type Client struct {
 	// all secondary indexes will be considered non-sparse; if set to 1.0, then each secondary
 	// index will be considered non-sparse if the number of items in the index matches the total
 	// number of items in the table. If set to a value greater than 1.0, then all secondary
-	// indexes will be considered sparse.
+	// indexes will be considered sparse. If the table is empty when sparseness is determined,
+	// then every secondary index will be considered sparse unless the threshold is 0.0 or less.
 	//
 	// By default, all secondary indexes are considered sparse. If non-default behavior is
 	// desired, this value should be set before any queries are parsed with Parser.Next.
