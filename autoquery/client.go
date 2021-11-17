@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 )
@@ -49,23 +48,28 @@ func NewClientWithMetadataProvider(
 // the underlying metadata provider. The metadata is cached for subsequent queries to the table
 // through the same Client instance. The query automatically selects an index based on the table
 // metadata and any expression restrictions.
-func (client *Client) NewQuery(ctx context.Context,
-	tableName string, expr *Expression) (*Parser, error) {
-
-	queryIndex, err := client.chooseIndex(ctx, tableName, expr)
-
-	queryInput, err := client.constructQueryInputGivenIndex(queryIndex)
-	if err != nil {
-		return nil, err
-	}
-
-	queryInput.TableName = aws.String(tableName)
-
+func (client *Client) NewQuery(tableName string, expr *Expression) *Parser {
 	return &Parser{
-		queryInput:    queryInput,
+		client:        client,
+		tableName:     tableName,
+		expr:          expr,
 		bufferedItems: []map[string]*dynamodb.AttributeValue{},
-	}, nil
+	}
 }
+
+// queryIndex, err := client.chooseIndex(ctx, tableName, expr)
+
+// queryInput, err := client.constructQueryInputGivenIndex(queryIndex)
+// if err != nil {
+// 	return nil, err
+// }
+
+// queryInput.TableName = aws.String(tableName)
+
+// return &Parser{
+// 	queryInput:    queryInput,
+// 	bufferedItems: []map[string]*dynamodb.AttributeValue{},
+// }, nil
 
 func (client *Client) pullIndexMetadata(
 	ctx context.Context, tableName string) (*tableIndexMetadata, error) {

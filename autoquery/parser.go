@@ -5,12 +5,19 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 )
 
 // Parser is used for parsing query results.
 type Parser struct {
+	client *Client
+
+	tableName string
+	expr      *Expression
+
 	maxPagesSpecified bool
 	maxPages          int
+	currentPage       int
 
 	limitPerPageSpecified bool
 	limitPerPage          int
@@ -25,17 +32,56 @@ type Parser struct {
 
 // Next retrieves the next item in the query.
 //
-// The first call to Next on a Parser always makes a query call to DynamoDB.
-// On subsequent calls, the remaining buffered items will be returned in order until all buffered
-// items have been returned.
-// Next will make subsequent paginated query calls to DynamoDB to refill the internal buffer until
-// all max pagination has been reached or until all items in the query have been returned.
+// On the first call to Next with a new table, the table's index metadata will be retrieved using
+// the underlying metadata provider. For the default client created by NewClient, this requires
+// IAM permissions to describe the table. The metadata is cached for subsequent queries to the
+// table through the client instance used in the call to NewQuery.
 //
-// Once all items have been returned or max pagination has been reached, the query will return an
-// ErrParsingComplete instance.
+// The first call to Next on a new Parser always makes a query call to DynamoDB. The query
+// automatically selects an index based on the table metadata and any expression restrictions. On
+// subsequent calls, the remaining buffered items will be returned in order until all buffered
+// items have been returned. Next will make subsequent paginated query calls to DynamoDB to refill
+// the internal buffer as necessary until max pages have been parsed completely or until all items
+// in the query have been returned, whichever comes first.g
+//
+// Once all items have been returned or max pagination has been reached, the query will return
+// ErrParsingComplete.
 func (parser *Parser) Next(ctx context.Context, returnItem interface{}) error {
-	// TODO: implement
-	return fmt.Errorf("not yet implemented")
+	// refill buffer if necessary, including first call
+	for parser.currentBufferIndex == len(parser.bufferedItems) {
+		// check for parsing complete conditions
+		if parser.allItemsParsed() {
+			return ErrParsingComplete{reason: "all items have been parsed"}
+		} else if parser.maxPaginationReached() {
+			return ErrParsingComplete{reason: "max pagination has been reached"}
+		}
+
+		// construct query input using table metadata and expression on first call
+		if parser.queryInput == nil {
+			var err error
+			parser.queryInput, err = parser.constructQueryInput(ctx)
+			if err != nil {
+				return err
+			}
+		}
+
+		parser.queryInput.ExclusiveStartKey = parser.exclusiveStartkey
+
+		queryOutput, err := parser.client.dynamodbService.QueryWithContext(ctx, parser.queryInput)
+		if err != nil {
+			return err
+		}
+
+		parser.exclusiveStartkey = queryOutput.LastEvaluatedKey
+		parser.currentPage++
+		parser.bufferedItems = queryOutput.Items
+		parser.currentBufferIndex = 0
+	}
+
+	currentItem := parser.bufferedItems[parser.currentBufferIndex]
+	parser.currentBufferIndex++
+
+	return dynamodbattribute.UnmarshalMap(currentItem, returnItem)
 }
 
 // SetMaxPagination sets the maximum number of pages to query.
@@ -81,3 +127,19 @@ func (parser *Parser) SetExclusiveStartKey(
 // func (parser *Parser) LastParsedKey() map[string]*dynamodb.AttributeValue {
 // 	return parser.exclusiveStartkey
 // }
+
+func (parser *Parser) lastEvaluatedKeyIsEmpty() bool {
+	return parser.exclusiveStartkey == nil || len(parser.exclusiveStartkey) == 0
+}
+
+func (parser *Parser) allItemsParsed() bool {
+	return parser.currentPage > 0 && parser.lastEvaluatedKeyIsEmpty()
+}
+
+func (parser *Parser) maxPaginationReached() bool {
+	return parser.maxPagesSpecified && (parser.currentPage >= parser.maxPages)
+}
+
+func (parser *Parser) constructQueryInput(ctx context.Context) (*dynamodb.QueryInput, error) {
+	return nil, fmt.Errorf("not yet implemented")
+}
