@@ -16,8 +16,28 @@ type Client struct {
 
 	metadataProvider TableDescriptionProvider
 
-	// TODO: cache table metadata
 	tableIndexMetadataCache map[string]*tableIndexMetadata
+
+	// SecondaryIndexSparsenessThreshold sets the threshold for secondary indexes to be considered
+	// sparse vs non-sparse. This does not apply to the primary table index, which is never
+	// sparse.
+	//
+	// When a table's metadata is gathered, if the ratio of number of items in the secondary index
+	// to number of items in the table is greater than or equal to
+	// SecondaryIndexSparsenessThreshold, then the index will be considered non-sparse for
+	// purposes of index selection. Sparse indexes are only viable for query expressions which
+	// filter on both the primary and sort keys of the index, in order to ensure that all items
+	// matched on the query are returned.
+	//
+	// If the SecondaryIndexSparsenessThreshold is set to a value less than or equal to 0.0, then
+	// all secondary indexes will be considered non-sparse; if set to 1.0, then each secondary
+	// index will be considered non-sparse if the number of items in the index matches the total
+	// number of items in the table. If set to a value greater than 1.0, then all secondary
+	// indexes will be considered sparse.
+	//
+	// By default, all secondary indexes are considered sparse. If non-default behavior is
+	// desired, this value should be set before any queries are parsed with Parser.Next.
+	SecondaryIndexSparsenessThreshold float64
 }
 
 // NewClient creates a new Client instance.
@@ -39,6 +59,8 @@ func NewClientWithMetadataProvider(
 		dynamodbService:         service,
 		metadataProvider:        provider,
 		tableIndexMetadataCache: map[string]*tableIndexMetadata{},
+		// by default, all secondary indexes are considered sparse
+		SecondaryIndexSparsenessThreshold: 1.1,
 	}
 }
 
@@ -68,12 +90,70 @@ func (client *Client) pullIndexMetadata(
 		if err != nil {
 			return nil, err
 		}
-		indexMetadata = parseTableIndexMetadata(tableDescription)
+		indexMetadata = client.parseTableIndexMetadata(tableDescription)
 		// add metadata to cache
 		client.tableIndexMetadataCache[tableName] = indexMetadata
 	}
 
 	return indexMetadata, nil
+}
+
+func (client *Client) parseTableIndexMetadata(table *dynamodb.TableDescription) *tableIndexMetadata {
+	output := &tableIndexMetadata{
+		Indexes: []*tableIndex{},
+	}
+
+	appendIndex := func(index *tableIndex) {
+		output.Indexes = append(output.Indexes, index)
+	}
+
+	// extract primary key index
+	tableSize := int(*table.ItemCount)
+	tablePrimaryIndex := &tableIndex{
+		Name:                  tablePrimaryIndexName,
+		Size:                  tableSize,
+		IncludesAllAttributes: true,
+		ConsistentReadable:    true,
+		IsSparse:              false,
+	}
+	tablePrimaryIndex.loadKeysFromSchema(table.KeySchema)
+	appendIndex(tablePrimaryIndex)
+
+	tablePrimaryIndexKeys := tablePrimaryIndex.getKeys()
+
+	// extract global secondary indexes
+	if table.GlobalSecondaryIndexes != nil {
+		for _, gsi := range table.GlobalSecondaryIndexes {
+			index := &tableIndex{
+				Name: *gsi.IndexName,
+				Size: int(*gsi.ItemCount),
+				// global secondary indexes do not support consistent read
+				ConsistentReadable: false,
+			}
+			index.loadKeysFromSchema(gsi.KeySchema)
+			index.loadAttributesFromProjection(gsi.Projection, tablePrimaryIndexKeys)
+			index.inferSparseness(tableSize, client.SecondaryIndexSparsenessThreshold)
+			appendIndex(index)
+		}
+	}
+
+	// extract local secondary indexes
+	if table.LocalSecondaryIndexes != nil {
+		for _, lsi := range table.LocalSecondaryIndexes {
+			index := &tableIndex{
+				Name:               *lsi.IndexName,
+				Size:               int(*lsi.ItemCount),
+				ConsistentReadable: true,
+				IsSparse:           true,
+			}
+			index.loadKeysFromSchema(lsi.KeySchema)
+			index.loadAttributesFromProjection(lsi.Projection, tablePrimaryIndexKeys)
+			index.inferSparseness(tableSize, client.SecondaryIndexSparsenessThreshold)
+			appendIndex(index)
+		}
+	}
+
+	return output
 }
 
 func (client *Client) chooseIndex(ctx context.Context,
@@ -177,6 +257,17 @@ func (client *Client) listIndexViabilityInfractions(
 	} else if !index.IncludesAllAttributes {
 		notViableReasons = append(notViableReasons,
 			"expression does not select attributes, so it requires an index that projects all")
+	}
+
+	// if index is sparse, then both partition and sort attributes must appear in expression
+	if index.IsSparse {
+		// equals condition on partition key takes precedence, so only need to check sort key
+		if _, found := expr.filters[index.SortKey]; !found {
+			reason := fmt.Sprintf(
+				"expression does not filter on sparse secondary index's sort key: %s",
+				index.SortKey)
+			notViableReasons = append(notViableReasons, reason)
+		}
 	}
 
 	return notViableReasons

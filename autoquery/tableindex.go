@@ -13,6 +13,7 @@ type tableIndex struct {
 	IncludesAllAttributes bool
 	Size                  int
 	ConsistentReadable    bool
+	IsSparse              bool
 }
 
 func (index *tableIndex) loadKeysFromSchema(keySchema []*dynamodb.KeySchemaElement) {
@@ -51,5 +52,14 @@ func (index *tableIndex) loadAttributesFromProjection(projection *dynamodb.Proje
 				index.AttributeSet[*attribute] = struct{}{}
 			}
 		}
+	}
+}
+
+func (index *tableIndex) inferSparseness(tableSize int, threshold float64) {
+	if !index.IsComposite {
+		index.IsSparse = false
+	} else {
+		sparsenessRatio := float64(index.Size) / float64(tableSize)
+		index.IsSparse = (sparsenessRatio < threshold)
 	}
 }
