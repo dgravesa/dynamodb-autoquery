@@ -57,20 +57,6 @@ func (client *Client) NewQuery(tableName string, expr *Expression) *Parser {
 	}
 }
 
-// queryIndex, err := client.chooseIndex(ctx, tableName, expr)
-
-// queryInput, err := client.constructQueryInputGivenIndex(queryIndex)
-// if err != nil {
-// 	return nil, err
-// }
-
-// queryInput.TableName = aws.String(tableName)
-
-// return &Parser{
-// 	queryInput:    queryInput,
-// 	bufferedItems: []map[string]*dynamodb.AttributeValue{},
-// }, nil
-
 func (client *Client) pullIndexMetadata(
 	ctx context.Context, tableName string) (*tableIndexMetadata, error) {
 

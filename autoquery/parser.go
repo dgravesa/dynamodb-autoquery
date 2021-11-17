@@ -2,8 +2,8 @@ package autoquery
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 )
@@ -58,15 +58,14 @@ func (parser *Parser) Next(ctx context.Context, returnItem interface{}) error {
 
 		// construct query input using table metadata and expression on first call
 		if parser.queryInput == nil {
-			var err error
-			parser.queryInput, err = parser.constructQueryInput(ctx)
-			if err != nil {
+			if err := parser.buildQueryInput(ctx); err != nil {
 				return err
 			}
 		}
 
 		parser.queryInput.ExclusiveStartKey = parser.exclusiveStartkey
 
+		// execute new query to refill buffer
 		queryOutput, err := parser.client.dynamodbService.QueryWithContext(ctx, parser.queryInput)
 		if err != nil {
 			return err
@@ -140,6 +139,18 @@ func (parser *Parser) maxPaginationReached() bool {
 	return parser.maxPagesSpecified && (parser.currentPage >= parser.maxPages)
 }
 
-func (parser *Parser) constructQueryInput(ctx context.Context) (*dynamodb.QueryInput, error) {
-	return nil, fmt.Errorf("not yet implemented")
+func (parser *Parser) buildQueryInput(ctx context.Context) error {
+	queryIndex, err := parser.client.chooseIndex(ctx, parser.tableName, parser.expr)
+	if err != nil {
+		return err
+	}
+
+	parser.queryInput, err = parser.client.constructQueryInputGivenIndex(queryIndex)
+	if err != nil {
+		return err
+	}
+
+	parser.queryInput.TableName = aws.String(parser.tableName)
+
+	return nil
 }
