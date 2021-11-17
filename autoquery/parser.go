@@ -30,7 +30,8 @@ type Parser struct {
 	currentBufferIndex int
 }
 
-// Next retrieves the next item in the query.
+// Next retrieves the next item in the query. The returnItem is unmarshaled with "dynamodbav"
+// struct tags.
 //
 // On the first call to Next with a new table, the table's index metadata will be retrieved using
 // the underlying metadata provider. For the default client created by NewClient, this requires
@@ -42,7 +43,8 @@ type Parser struct {
 // subsequent calls, the remaining buffered items will be returned in order until all buffered
 // items have been returned. Next will make subsequent paginated query calls to DynamoDB to refill
 // the internal buffer as necessary until max pages have been parsed completely or until all items
-// in the query have been returned, whichever comes first.g
+// in the query have been returned, whichever comes first. If no viable indexes are found, the
+// call returns an ErrNoViableIndexes error.
 //
 // Once all items have been returned or max pagination has been reached, the query will return
 // ErrParsingComplete.
