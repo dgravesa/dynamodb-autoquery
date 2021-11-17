@@ -15,59 +15,71 @@ func NewExpression() *Expression {
 	}
 }
 
-// Equal adds a new equal condition to the expression.
-// All query expressions require at least one equal condition where the specified attribute is an
-// index partition key.
-func (expr *Expression) Equal(attr string, value interface{}) *Expression {
+// Equal adds a new equal condition to the expression. Only items where the value of the attribute
+// attr equals v will be returned. All query expressions require at least one equal condition
+// where the specified attribute attr is an index partition key.
+func (expr *Expression) Equal(attr string, v interface{}) *Expression {
 	// TODO: implement
 	return expr
 }
 
-// LessThan adds a new less than condition to the expression.
-func (expr *Expression) LessThan(attr string, value interface{}) *Expression {
+// LessThan adds a new less than condition to the expression. Only items where the value of the
+// attribute attr is less than v will be returned.
+func (expr *Expression) LessThan(attr string, v interface{}) *Expression {
 	// TODO: implement
 	return expr
 }
 
-// GreaterThan adds a new greater than condition to the expression.
-func (expr *Expression) GreaterThan(attr string, value interface{}) *Expression {
+// GreaterThan adds a new greater than condition to the expression. Only items where the value of
+// the attribute attr is greater than v will be returned.
+func (expr *Expression) GreaterThan(attr string, v interface{}) *Expression {
 	// TODO: implement
 	return expr
 }
 
-// LessThanEqual adds a new less than or equal condition to the expression.
-func (expr *Expression) LessThanEqual(attr string, value interface{}) *Expression {
+// LessThanEqual adds a new less than or equal condition to the expression. Only items where the
+// value of the attribute attr is less than or equal to v will be returned.
+func (expr *Expression) LessThanEqual(attr string, v interface{}) *Expression {
 	// TODO: implement
 	return expr
 }
 
-// GreaterThanEqual adds a new greater than or equal condition to the expression.
-func (expr *Expression) GreaterThanEqual(attr string, value interface{}) *Expression {
+// GreaterThanEqual adds a new greater than or equal condition to the expression. Only items where
+// the value of the attribute attr is greater than or equal to v will be returned.
+func (expr *Expression) GreaterThanEqual(attr string, v interface{}) *Expression {
 	// TODO: implement
 	return expr
 }
 
-// Between adds a new between condition to the expression.
+// Between adds a new between condition to the expression. Only items where the value of the
+// attribute attr is between lowval and highval will be returned.
 func (expr *Expression) Between(attr string, lowval, highval interface{}) *Expression {
 	// TODO: implement
 	return expr
 }
 
-// BeginsWith adds a new begins with condition to the expression.
+// BeginsWith adds a new begins-with condition to the expression. Only items where the value of
+// the attribute attr begins with the specified prefix will be returned.
 func (expr *Expression) BeginsWith(attr string, prefix string) *Expression {
 	// TODO: implement
 	return expr
 }
 
-// OrderBy sets the sort attribute, in either ascending or descending order.
-// Ordering by a specific attribute restricts the viable table indexes to those which use the
-// attribute as a sort key.
+// OrderBy sets attr as the sort attribute. If ascending is true, items will be returned starting
+// with the lowest value for the attribute. If ascending is false, the highest value will be
+// returned first. OrderBy may only be used on sort key attributes of indexes which satisfy all
+// other expression criteria.
 func (expr *Expression) OrderBy(attr string, ascending bool) *Expression {
 	return expr
 }
 
-// Select adds projection attributes to the query. Subsequent calls to Select will append to the
-// existing attributes.
+// Select specifies attributes that should be returned in queried items. Subsequent calls to
+// Select will append to the existing selected attributes for the expression.
+//
+// If Select is not specified for an expression, the query will project all attributes for each
+// returned item, but can only use indexes which project all attributes. When Select is specified,
+// any indexes which include every selected attribute and satisfy all other expression criteria
+// will be considered for the query index.
 func (expr *Expression) Select(attrs ...string) *Expression {
 	expr.attributesSpecified = true
 	expr.attributes = append(expr.attributes, attrs...)
