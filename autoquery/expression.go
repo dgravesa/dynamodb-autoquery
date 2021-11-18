@@ -25,49 +25,49 @@ func NewExpression() *Expression {
 // attr equals v will be returned. All query expressions require at least one equal condition
 // where the specified attribute attr is an index partition key.
 func (expr *Expression) Equal(attr string, v interface{}) *Expression {
-	// TODO: implement
+	expr.filters[attr] = &equalsFilter{value: v}
 	return expr
 }
 
 // LessThan adds a new less than condition to the expression. Only items where the value of the
 // attribute attr is less than v will be returned.
 func (expr *Expression) LessThan(attr string, v interface{}) *Expression {
-	// TODO: implement
+	expr.filters[attr] = &lessThanFilter{value: v}
 	return expr
 }
 
 // GreaterThan adds a new greater than condition to the expression. Only items where the value of
 // the attribute attr is greater than v will be returned.
 func (expr *Expression) GreaterThan(attr string, v interface{}) *Expression {
-	// TODO: implement
+	expr.filters[attr] = &greaterThanFilter{value: v}
 	return expr
 }
 
 // LessThanEqual adds a new less than or equal condition to the expression. Only items where the
 // value of the attribute attr is less than or equal to v will be returned.
 func (expr *Expression) LessThanEqual(attr string, v interface{}) *Expression {
-	// TODO: implement
+	expr.filters[attr] = &lessThanEqualFilter{value: v}
 	return expr
 }
 
 // GreaterThanEqual adds a new greater than or equal condition to the expression. Only items where
 // the value of the attribute attr is greater than or equal to v will be returned.
 func (expr *Expression) GreaterThanEqual(attr string, v interface{}) *Expression {
-	// TODO: implement
+	expr.filters[attr] = &greaterThanEqualFilter{value: v}
 	return expr
 }
 
 // Between adds a new between condition to the expression. Only items where the value of the
 // attribute attr is between lowval and highval will be returned.
 func (expr *Expression) Between(attr string, lowval, highval interface{}) *Expression {
-	// TODO: implement
+	expr.filters[attr] = &betweenFilter{lowval: lowval, highval: highval}
 	return expr
 }
 
 // BeginsWith adds a new begins-with condition to the expression. Only items where the value of
 // the attribute attr begins with the specified prefix will be returned.
 func (expr *Expression) BeginsWith(attr string, prefix string) *Expression {
-	// TODO: implement
+	expr.filters[attr] = &beginsWithFilter{prefix: prefix}
 	return expr
 }
 
