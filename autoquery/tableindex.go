@@ -65,7 +65,8 @@ func (index *tableIndex) loadAttributesFromProjection(
 	}
 }
 
-func (index *tableIndex) inferSparseness(tableSize int, threshold float64) {
+func (index *tableIndex) inferSparseness(primaryTableIndex *tableIndex, threshold float64) {
+	tableSize := primaryTableIndex.Size
 	if tableSize == 0 {
 		// special case, assume index has no sparsity benefit used for index selection
 		index.Sparsity = 0.0
@@ -80,5 +81,14 @@ func (index *tableIndex) inferSparseness(tableSize int, threshold float64) {
 		index.Sparsity = float64(index.Size) / float64(tableSize)
 		index.SparsityMultiplier = float64(tableSize) / float64(index.Size)
 	}
-	index.IsSparse = index.IsComposite && (index.Sparsity < threshold)
+
+	// determine if index should be considered sparse vs non-sparse
+	if !index.IsComposite {
+		index.IsSparse = false
+	} else {
+		// an index should not be considered sparse if its sort key is a primary table index key
+		sortKeyIsPrimaryTableKey := (index.SortKey == primaryTableIndex.PartitionKey) ||
+			(primaryTableIndex.IsComposite && index.SortKey == primaryTableIndex.SortKey)
+		index.IsSparse = !sortKeyIsPrimaryTableKey && index.Sparsity < threshold
+	}
 }

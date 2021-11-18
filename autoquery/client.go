@@ -122,6 +122,7 @@ func (client *Client) parseTableIndexMetadata(table *dynamodb.TableDescription) 
 		ConsistentReadable:    true,
 		IsSparse:              false,
 		Sparsity:              1.0,
+		SparsityMultiplier:    1.0,
 	}
 	tablePrimaryIndex.loadKeysFromSchema(table.KeySchema)
 	appendIndex(tablePrimaryIndex)
@@ -139,7 +140,7 @@ func (client *Client) parseTableIndexMetadata(table *dynamodb.TableDescription) 
 			}
 			index.loadKeysFromSchema(gsi.KeySchema)
 			index.loadAttributesFromProjection(gsi.Projection, tablePrimaryIndexKeys)
-			index.inferSparseness(tableSize, client.SecondaryIndexSparsenessThreshold)
+			index.inferSparseness(tablePrimaryIndex, client.SecondaryIndexSparsenessThreshold)
 			appendIndex(index)
 		}
 	}
@@ -155,7 +156,7 @@ func (client *Client) parseTableIndexMetadata(table *dynamodb.TableDescription) 
 			}
 			index.loadKeysFromSchema(lsi.KeySchema)
 			index.loadAttributesFromProjection(lsi.Projection, tablePrimaryIndexKeys)
-			index.inferSparseness(tableSize, client.SecondaryIndexSparsenessThreshold)
+			index.inferSparseness(tablePrimaryIndex, client.SecondaryIndexSparsenessThreshold)
 			appendIndex(index)
 		}
 	}

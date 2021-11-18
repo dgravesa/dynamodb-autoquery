@@ -25,6 +25,7 @@ type Expression struct {
 // NewExpression creates a new Expression instance.
 func NewExpression() *Expression {
 	return &Expression{
+		filters:              map[string]conditionFilter{},
 		attributes:           []string{},
 		additionalConditions: []expression.ConditionBuilder{},
 	}
