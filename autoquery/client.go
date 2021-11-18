@@ -19,15 +19,18 @@ type Client struct {
 	tableIndexMetadataCache map[string]*tableIndexMetadata
 
 	// SecondaryIndexSparsenessThreshold sets the threshold for secondary indexes to be considered
-	// sparse vs non-sparse. This does not apply to the primary table index, which is never
-	// sparse.
+	// sparse vs non-sparse.
+	//
+	// A sparse index is only viable with expressions that include conditions for both the
+	// partition key (which must be an Equal condition) and the sort key.
+	//
+	// The table's primary index is always non-sparse and is viable with any expression that
+	// includes an Equal condition on the partition key.
 	//
 	// When a table's metadata is gathered, if the ratio of number of items in the secondary index
 	// to number of items in the table is greater than or equal to
 	// SecondaryIndexSparsenessThreshold, then the index will be considered non-sparse for
-	// purposes of index selection. Sparse indexes are only viable for query expressions which
-	// filter on both the primary and sort keys of the index, in order to ensure that all items
-	// matched on the query are returned.
+	// purposes of index selection.
 	//
 	// If the SecondaryIndexSparsenessThreshold is set to a value less than or equal to 0.0, then
 	// all secondary indexes will be considered non-sparse; if set to 1.0, then each secondary
