@@ -2,7 +2,7 @@ package autoquery
 
 // Expression contains conditions and filters to be used in a query.
 type Expression struct {
-	filters map[string]expressionFilter
+	filters map[string]conditionFilter
 
 	attributesSpecified bool
 	attributes          []string
@@ -103,6 +103,17 @@ func (expr *Expression) Select(attrs ...string) *Expression {
 func (expr *Expression) ConsistentRead(val bool) *Expression {
 	expr.consistentRead = val
 	return expr
+}
+
+// And begins a new condition on an existing expression.
+//
+// The resulting ConditionKey should be followed by a condition in order to form a complete
+// expression.
+func (expr *Expression) And(attr string) *ConditionKey {
+	return &ConditionKey{
+		expr: expr,
+		attr: attr,
+	}
 }
 
 // TODO: implement

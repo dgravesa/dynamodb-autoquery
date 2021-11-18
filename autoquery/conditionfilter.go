@@ -1,6 +1,6 @@
 package autoquery
 
-type expressionFilter interface{}
+type conditionFilter interface{}
 
 type equalsFilter struct {
 	value interface{}
