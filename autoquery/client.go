@@ -3,6 +3,8 @@ package autoquery
 import (
 	"context"
 	"fmt"
+	"math"
+	"reflect"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -119,6 +121,7 @@ func (client *Client) parseTableIndexMetadata(table *dynamodb.TableDescription) 
 		IncludesAllAttributes: true,
 		ConsistentReadable:    true,
 		IsSparse:              false,
+		Sparsity:              1.0,
 	}
 	tablePrimaryIndex.loadKeysFromSchema(table.KeySchema)
 	appendIndex(tablePrimaryIndex)
@@ -210,12 +213,44 @@ func (client *Client) scoreIndexOnExpr(
 		}
 	}
 
-	return 0.0, &ErrIndexNotViable{
-		IndexName: index.Name,
-		NotViableReasons: []string{
-			"not yet implemented",
-		},
+	// Every viable index should return the same values (unless sparseness threshold is reduced).
+	// Remaining indexes should be scored with a reasonable best guess that puts the majority of
+	// the filtering on the partition and sort keys of the index.
+
+	// Viable sparse indexes are generally better than viable non-sparse indexes since the items
+	// are already filtered by the sparsity of the index, so viable indexes with fewer items are
+	// generally preferable.
+	if index.HasMaxSparsityMultiplier {
+		// if index is viable and has zero sparsity, then it suggests the expression has zero
+		// result items.
+		// TODO: if index starts out with zero items but gains items over a Client instance's
+		// lifetime, then the index size metadata will become outdated and may lead to non-optimal
+		// index selection. Consider metadata cache invalidation after some time.
+		return math.MaxFloat64, nil
 	}
+
+	// Some expression conditions may filter items more quickly than others. Equal conditions are
+	// the most restrictive. Between and prefix conditions are typically more restrictive than
+	// less than (equal) or greater than (equal) conditions.
+	defaultFilterTypeScore := 1.0
+	sortKeyFilterTypeScoreMap := map[reflect.Type]float64{
+		reflect.TypeOf(&equalsFilter{}):     2.5, // equals filter is 2.5x preferred
+		reflect.TypeOf(&betweenFilter{}):    1.8, // between filter is 1.8x preferred
+		reflect.TypeOf(&beginsWithFilter{}): 1.5, // prefix filter is 1.5x preferred
+		reflect.TypeOf(nil):                 0.2, // no filter on sort key is not preferable
+	}
+	var exprSortKeyFilter conditionFilter = nil
+	if index.IsComposite {
+		exprSortKeyFilter = expr.filters[index.SortKey]
+	}
+	sortKeyFilterTypeScore, found := sortKeyFilterTypeScoreMap[reflect.TypeOf(exprSortKeyFilter)]
+	if !found {
+		sortKeyFilterTypeScore = defaultFilterTypeScore
+	}
+
+	indexScore := index.SparsityMultiplier * sortKeyFilterTypeScore
+
+	return indexScore, nil
 }
 
 func (client *Client) listIndexViabilityInfractions(

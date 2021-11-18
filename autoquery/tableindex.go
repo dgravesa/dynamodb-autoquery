@@ -1,6 +1,10 @@
 package autoquery
 
-import "github.com/aws/aws-sdk-go/service/dynamodb"
+import (
+	"math"
+
+	"github.com/aws/aws-sdk-go/service/dynamodb"
+)
 
 const tablePrimaryIndexName = "#primary"
 
@@ -13,7 +17,11 @@ type tableIndex struct {
 	IncludesAllAttributes bool
 	Size                  int
 	ConsistentReadable    bool
-	IsSparse              bool
+
+	IsSparse                 bool
+	Sparsity                 float64
+	SparsityMultiplier       float64
+	HasMaxSparsityMultiplier bool
 }
 
 func (index *tableIndex) loadKeysFromSchema(keySchema []*dynamodb.KeySchemaElement) {
@@ -36,7 +44,9 @@ func (index tableIndex) getKeys() []string {
 	return []string{index.PartitionKey}
 }
 
-func (index *tableIndex) loadAttributesFromProjection(projection *dynamodb.Projection, tablePrimaryIndexKeys []string) {
+func (index *tableIndex) loadAttributesFromProjection(
+	projection *dynamodb.Projection, tablePrimaryIndexKeys []string) {
+
 	if projection == nil || *projection.ProjectionType == "ALL" {
 		index.IncludesAllAttributes = true
 	} else {
@@ -56,15 +66,19 @@ func (index *tableIndex) loadAttributesFromProjection(projection *dynamodb.Proje
 }
 
 func (index *tableIndex) inferSparseness(tableSize int, threshold float64) {
-	if !index.IsComposite {
-		index.IsSparse = false
+	if tableSize == 0 {
+		// special case, assume index has no sparsity benefit used for index selection
+		index.Sparsity = 0.0
+		index.SparsityMultiplier = 1.0
+	} else if index.Size == 0 {
+		// index has no items, any expression for which it is viable suggests no items will be
+		// returned
+		index.Sparsity = 0.0
+		index.SparsityMultiplier = math.MaxFloat64
+		index.HasMaxSparsityMultiplier = true
 	} else {
-		var sparsenessRatio float64
-		if tableSize == 0 {
-			sparsenessRatio = 0.0
-		} else {
-			sparsenessRatio = float64(index.Size) / float64(tableSize)
-		}
-		index.IsSparse = (sparsenessRatio < threshold)
+		index.Sparsity = float64(index.Size) / float64(tableSize)
+		index.SparsityMultiplier = float64(tableSize) / float64(index.Size)
 	}
+	index.IsSparse = index.IsComposite && (index.Sparsity < threshold)
 }
