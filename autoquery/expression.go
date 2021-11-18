@@ -24,6 +24,9 @@ func NewExpression() *Expression {
 // Equal adds a new equal condition to the expression. Only items where the value of the attribute
 // attr equals v will be returned. All query expressions require at least one equal condition
 // where the specified attribute attr is an index partition key.
+//
+// If multiple filter conditions are specified on the same attribute, only the most recent
+// condition will apply to the expression.
 func (expr *Expression) Equal(attr string, v interface{}) *Expression {
 	expr.filters[attr] = &equalsFilter{value: v}
 	return expr
@@ -31,6 +34,9 @@ func (expr *Expression) Equal(attr string, v interface{}) *Expression {
 
 // LessThan adds a new less than condition to the expression. Only items where the value of the
 // attribute attr is less than v will be returned.
+//
+// If multiple filter conditions are specified on the same attribute, only the most recent
+// condition will apply to the expression.
 func (expr *Expression) LessThan(attr string, v interface{}) *Expression {
 	expr.filters[attr] = &lessThanFilter{value: v}
 	return expr
@@ -38,6 +44,9 @@ func (expr *Expression) LessThan(attr string, v interface{}) *Expression {
 
 // GreaterThan adds a new greater than condition to the expression. Only items where the value of
 // the attribute attr is greater than v will be returned.
+//
+// If multiple filter conditions are specified on the same attribute, only the most recent
+// condition will apply to the expression.
 func (expr *Expression) GreaterThan(attr string, v interface{}) *Expression {
 	expr.filters[attr] = &greaterThanFilter{value: v}
 	return expr
@@ -45,6 +54,9 @@ func (expr *Expression) GreaterThan(attr string, v interface{}) *Expression {
 
 // LessThanEqual adds a new less than or equal condition to the expression. Only items where the
 // value of the attribute attr is less than or equal to v will be returned.
+//
+// If multiple filter conditions are specified on the same attribute, only the most recent
+// condition will apply to the expression.
 func (expr *Expression) LessThanEqual(attr string, v interface{}) *Expression {
 	expr.filters[attr] = &lessThanEqualFilter{value: v}
 	return expr
@@ -52,6 +64,9 @@ func (expr *Expression) LessThanEqual(attr string, v interface{}) *Expression {
 
 // GreaterThanEqual adds a new greater than or equal condition to the expression. Only items where
 // the value of the attribute attr is greater than or equal to v will be returned.
+//
+// If multiple filter conditions are specified on the same attribute, only the most recent
+// condition will apply to the expression.
 func (expr *Expression) GreaterThanEqual(attr string, v interface{}) *Expression {
 	expr.filters[attr] = &greaterThanEqualFilter{value: v}
 	return expr
@@ -59,6 +74,9 @@ func (expr *Expression) GreaterThanEqual(attr string, v interface{}) *Expression
 
 // Between adds a new between condition to the expression. Only items where the value of the
 // attribute attr is between lowval and highval will be returned.
+//
+// If multiple filter conditions are specified on the same attribute, only the most recent
+// condition will apply to the expression.
 func (expr *Expression) Between(attr string, lowval, highval interface{}) *Expression {
 	expr.filters[attr] = &betweenFilter{lowval: lowval, highval: highval}
 	return expr
@@ -66,6 +84,9 @@ func (expr *Expression) Between(attr string, lowval, highval interface{}) *Expre
 
 // BeginsWith adds a new begins-with condition to the expression. Only items where the value of
 // the attribute attr begins with the specified prefix will be returned.
+//
+// If multiple filter conditions are specified on the same attribute, only the most recent
+// condition will apply to the expression.
 func (expr *Expression) BeginsWith(attr string, prefix string) *Expression {
 	expr.filters[attr] = &beginsWithFilter{prefix: prefix}
 	return expr
@@ -109,6 +130,9 @@ func (expr *Expression) ConsistentRead(val bool) *Expression {
 //
 // The resulting ConditionKey should be followed by a condition in order to form a complete
 // expression.
+//
+// If multiple filter conditions are specified on the same attribute, only the most recent
+// condition will apply to the expression.
 func (expr *Expression) And(attr string) *ConditionKey {
 	return &ConditionKey{
 		expr: expr,
