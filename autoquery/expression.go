@@ -1,5 +1,11 @@
 package autoquery
 
+import (
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
+)
+
 // Expression contains conditions and filters to be used in a query.
 type Expression struct {
 	filters map[string]conditionFilter
@@ -12,12 +18,15 @@ type Expression struct {
 	orderAscending bool
 
 	consistentRead bool
+
+	additionalConditions []expression.ConditionBuilder
 }
 
 // NewExpression creates a new Expression instance.
 func NewExpression() *Expression {
 	return &Expression{
-		attributes: []string{},
+		attributes:           []string{},
+		additionalConditions: []expression.ConditionBuilder{},
 	}
 }
 
@@ -140,22 +149,131 @@ func (expr *Expression) And(attr string) *ConditionKey {
 	}
 }
 
-// TODO: implement
-// func (expr *Expression) Filter(filterExpr expression.ConditionBuilder) *Expression {
-// 	return expr
-// }
+// Filter applies a condition from the DynamoDB expression package to an expression. Subsequent
+// calls to Filter will append additional filters, and all filters will be applied as part of the
+// expression.
+//
+// These filters may be used to enable conditions that are otherwise not supported, such as OR
+// conditions.
+func (expr *Expression) Filter(filterCondition expression.ConditionBuilder) *Expression {
+	expr.additionalConditions = append(expr.additionalConditions, filterCondition)
+	return expr
+}
 
-// func (expr *Expression) getKeysOfFilterType(v interface{}) []string {
-// 	vType := reflect.TypeOf(v)
+func (expr *Expression) constructQueryInputGivenIndex(
+	index *tableIndex) (*dynamodb.QueryInput, error) {
 
-// 	// create set of all keys with specific filters
-// 	keys := []string{}
-// 	for key, filter := range expr.filters {
-// 		fType := reflect.TypeOf(filter)
-// 		if fType == vType {
-// 			keys = append(keys, key)
-// 		}
-// 	}
+	dynamodbExprBuilder := expression.NewBuilder()
 
-// 	return keys
-// }
+	// copy expression filters into local map
+	filters := map[string]conditionFilter{}
+	for k, v := range expr.filters {
+		filters[k] = v
+	}
+
+	// initialize partition equals part of key condition expression
+	kce := expression.Key(index.PartitionKey).
+		Equal(expression.Value(expr.filters[index.PartitionKey].(*equalsFilter).value))
+	delete(filters, index.PartitionKey)
+
+	// apply sort key condition to key condition expression if applicable
+	if index.IsComposite {
+		filter, hasSortKeyFilter := filters[index.SortKey]
+		if hasSortKeyFilter {
+			builder := expression.Key(index.SortKey)
+			switch f := filter.(type) {
+			case *equalsFilter:
+				kce = kce.And(builder.Equal(expression.Value(f.value)))
+			case *lessThanFilter:
+				kce = kce.And(builder.LessThan(expression.Value(f.value)))
+			case *greaterThanFilter:
+				kce = kce.And(builder.GreaterThan(expression.Value(f.value)))
+			case *lessThanEqualFilter:
+				kce = kce.And(builder.LessThanEqual(expression.Value(f.value)))
+			case *greaterThanEqualFilter:
+				kce = kce.And(builder.GreaterThanEqual(expression.Value(f.value)))
+			case *betweenFilter:
+				kce = kce.And(builder.Between(
+					expression.Value(f.lowval), expression.Value(f.highval)))
+			case *beginsWithFilter:
+				kce = kce.And(builder.BeginsWith(f.prefix))
+			}
+			delete(filters, index.SortKey)
+		}
+	}
+
+	dynamodbExprBuilder = dynamodbExprBuilder.WithKeyCondition(kce)
+
+	// apply remaining filters as filter conditions
+	filterConditions := []expression.ConditionBuilder{}
+	for key, filter := range filters {
+		var fc expression.ConditionBuilder
+		switch f := filter.(type) {
+		case *equalsFilter:
+			fc = expression.Name(key).Equal(expression.Value(f.value))
+		case *lessThanFilter:
+			fc = expression.Name(key).LessThan(expression.Value(f.value))
+		case *greaterThanFilter:
+			fc = expression.Name(key).GreaterThan(expression.Value(f.value))
+		case *lessThanEqualFilter:
+			fc = expression.Name(key).LessThanEqual(expression.Value(f.value))
+		case *greaterThanEqualFilter:
+			fc = expression.Name(key).GreaterThanEqual(expression.Value(f.value))
+		case *betweenFilter:
+			fc = expression.Name(key).Between(
+				expression.Value(f.lowval), expression.Value(f.highval))
+		case *beginsWithFilter:
+			fc = expression.Name(key).BeginsWith(f.prefix)
+		}
+		filterConditions = append(filterConditions, fc)
+	}
+
+	// apply additional filter conditions, if specified
+	filterConditions = append(filterConditions, expr.additionalConditions...)
+
+	if len(filterConditions) == 1 {
+		dynamodbExprBuilder = dynamodbExprBuilder.WithFilter(filterConditions[0])
+	} else if len(filterConditions) > 1 {
+		dynamodbExprBuilder = dynamodbExprBuilder.WithFilter(expression.And(
+			filterConditions[0],
+			filterConditions[1],
+			filterConditions[2:]...))
+	}
+
+	// set projection if specified
+	if expr.attributesSpecified {
+		names := []expression.NameBuilder{}
+		for _, attribute := range expr.attributes {
+			names = append(names, expression.Name(attribute))
+		}
+		proj := expression.NamesList(names[0], names[1:]...)
+		dynamodbExprBuilder = dynamodbExprBuilder.WithProjection(proj)
+	}
+
+	dynamodbExpr, err := dynamodbExprBuilder.Build()
+	if err != nil {
+		return nil, err
+	}
+
+	queryInput := &dynamodb.QueryInput{
+		KeyConditionExpression:    dynamodbExpr.KeyCondition(),
+		FilterExpression:          dynamodbExpr.Filter(),
+		ExpressionAttributeNames:  dynamodbExpr.Names(),
+		ExpressionAttributeValues: dynamodbExpr.Values(),
+		ProjectionExpression:      dynamodbExpr.Projection(),
+	}
+
+	if index.Name != tablePrimaryIndexName {
+		queryInput.IndexName = aws.String(index.Name)
+	}
+
+	if expr.consistentRead {
+		queryInput.ConsistentRead = aws.Bool(true)
+	}
+
+	if expr.orderSpecified {
+		queryInput.ScanIndexForward = aws.Bool(expr.orderAscending)
+	}
+
+	return queryInput, nil
+}

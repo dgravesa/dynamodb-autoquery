@@ -53,19 +53,15 @@ func (parser *Parser) Next(ctx context.Context, returnItem interface{}) error {
 	for parser.currentBufferIndex == len(parser.bufferedItems) {
 		// check for parsing complete conditions
 		if parser.allItemsParsed() {
-			return ErrParsingComplete{reason: "all items have been parsed"}
+			return &ErrParsingComplete{reason: "all items have been parsed"}
 		} else if parser.maxPaginationReached() {
-			return ErrParsingComplete{reason: "max pagination has been reached"}
+			return &ErrParsingComplete{reason: "max pagination has been reached"}
 		}
 
 		// construct query input using table metadata and expression on first call
-		if parser.queryInput == nil {
-			if err := parser.buildQueryInput(ctx); err != nil {
-				return err
-			}
+		if err := parser.buildQueryInput(ctx); err != nil {
+			return err
 		}
-
-		parser.queryInput.ExclusiveStartKey = parser.exclusiveStartkey
 
 		// execute new query to refill buffer
 		queryOutput, err := parser.client.dynamodbService.QueryWithContext(ctx, parser.queryInput)
@@ -142,17 +138,28 @@ func (parser *Parser) maxPaginationReached() bool {
 }
 
 func (parser *Parser) buildQueryInput(ctx context.Context) error {
-	queryIndex, err := parser.client.chooseIndex(ctx, parser.tableName, parser.expr)
-	if err != nil {
-		return err
-	}
+	// select index and construct expression on first call
+	if parser.queryInput == nil {
+		queryIndex, err := parser.client.chooseIndex(ctx, parser.tableName, parser.expr)
+		if err != nil {
+			return err
+		}
 
-	parser.queryInput, err = parser.client.constructQueryInputGivenIndex(queryIndex)
-	if err != nil {
-		return err
+		parser.queryInput, err = parser.expr.constructQueryInputGivenIndex(queryIndex)
+		if err != nil {
+			return err
+		}
 	}
 
 	parser.queryInput.TableName = aws.String(parser.tableName)
+
+	if parser.limitPerPageSpecified {
+		parser.queryInput.Limit = aws.Int64(int64(parser.limitPerPage))
+	} else {
+		parser.queryInput.Limit = nil
+	}
+
+	parser.queryInput.ExclusiveStartKey = parser.exclusiveStartkey
 
 	return nil
 }

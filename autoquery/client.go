@@ -195,13 +195,6 @@ func (client *Client) chooseIndex(ctx context.Context,
 	return bestIndex, nil
 }
 
-func (client *Client) constructQueryInputGivenIndex(
-	queryIndex *tableIndex) (*dynamodb.QueryInput, error) {
-
-	// TODO: implement
-	return nil, fmt.Errorf("not yet implemented")
-}
-
 func (client *Client) scoreIndexOnExpr(
 	index *tableIndex, expr *Expression) (float64, *ErrIndexNotViable) {
 
