@@ -269,33 +269,36 @@ func (client *Client) listIndexViabilityInfractions(
 	// if order is specified, index must sort on that attribute
 	if expr.orderSpecified && expr.orderAttribute != index.SortKey {
 		reason := fmt.Sprintf(
-			"expression specifies order, which requires an index with sort key: %s",
-			index.SortKey)
+			"expression specifies order, so it requires an index with sort key: %s",
+			expr.orderAttribute)
 		notViableReasons = append(notViableReasons, reason)
 	}
 
 	// index must include selected attributes, or project all attributes if not specified
-	if expr.attributesSpecified {
-		indexMissingAttrs := []string{}
-		for _, selectedAttr := range expr.attributes {
-			if _, found := index.AttributeSet[selectedAttr]; !found {
-				indexMissingAttrs = append(indexMissingAttrs, selectedAttr)
+	if !index.IncludesAllAttributes {
+		if expr.attributesSpecified {
+			indexMissingAttrs := []string{}
+			for _, selectedAttr := range expr.attributes {
+				if _, found := index.AttributeSet[selectedAttr]; !found {
+					indexMissingAttrs = append(indexMissingAttrs, selectedAttr)
+				}
 			}
+			if len(indexMissingAttrs) > 0 {
+				reason := fmt.Sprintf("index does not include attributes: %s",
+					strings.Join(indexMissingAttrs, ", "))
+				notViableReasons = append(notViableReasons, reason)
+			}
+		} else {
+			notViableReasons = append(notViableReasons,
+				"expression does not select attributes, so it requires an index that projects all")
 		}
-		if len(indexMissingAttrs) > 0 {
-			reason := fmt.Sprintf("index does not include attributes: %s",
-				strings.Join(indexMissingAttrs, ", "))
-			notViableReasons = append(notViableReasons, reason)
-		}
-	} else if !index.IncludesAllAttributes {
-		notViableReasons = append(notViableReasons,
-			"expression does not select attributes, so it requires an index that projects all")
 	}
 
 	// if index is sparse, then both partition and sort attributes must appear in expression
 	if index.IsSparse {
 		// equals condition on partition key takes precedence, so only need to check sort key
-		if _, found := expr.filters[index.SortKey]; !found {
+		_, sortKeyInFilters := expr.filters[index.SortKey]
+		if !sortKeyInFilters && expr.orderAttribute != index.SortKey {
 			reason := fmt.Sprintf(
 				"expression does not filter on sparse secondary index's sort key: %s",
 				index.SortKey)
