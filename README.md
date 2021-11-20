@@ -24,17 +24,16 @@ aq := autoquery.NewClient(svc)
 2) Build an `autoquery.Expression`, and initialize a new query parser using the client.
 
 ```go
-ascending := false
 expr := autoquery.Key("director").Equal("Clint Eastwood").
-    And("title").BeginsWith("The").
-    OrderBy("rating", ascending).
+    And("title").BeginsWith("The ").
+    OrderBy("rating", false). // high to low
     Select("title", "year", "rating")
 
 tableName := "Movies"
 parser := aq.NewQuery(tableName, expr)
 ```
 
-3) Parse result items
+3) Parse result items using the `autoquery.Parser` instance.
 
 ```go
 var movie struct {
