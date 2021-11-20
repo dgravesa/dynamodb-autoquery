@@ -71,14 +71,14 @@ default:
 In order for a given expression to be executed on a table, at least one index must meet all of the following criteria:
 
 * The partition key attribute of the index must be used in an `Equal` condition in the expression.
-* If an order attribute is specified on the expression, then the index must have the same attribute as its sort key.
-* If the expression selects particular attributes,
+* If an `OrderBy` attribute is specified on the expression, then the index must have the same attribute as its sort key.
+* If the expression contains a `Select` clause,
 then the index must include all selected attributes in its projection or project all attributes.
 * If the expression does not select attributes, then the index must project all attributes.
 * If the index is considered sparse (see below), then both the partition key and sort key attributes must appear in the expression.
 The sort key attribute may appear as the `OrderBy` clause for the index to be considered viable.
 It is not sufficient for the attribute to appear only in the `Select` clause.
-* If the expression specified consitent read, then the index must not be a global secondary index.
+* If the expression specifies `ConsistentRead(true)`, then the index must not be a global secondary index.
 
 In general, `autoquery` should not be expected as a means of enabling full SQL-like flexibility.
 The expression capability still depends on the indexes defined for a table.
@@ -103,4 +103,4 @@ If the value is set to 0.0 or less, then all indexes will be considered non-spar
 \*There is one exception to secondary index sparseness: since the primary table index attributes must be present in all items, any secondary index which uses either the table's primary partition key or primary sort key as its own sort key will always be non-sparse for purposes of index selection.
 
 It is possible for the metadata and sparseness classification to become stale if items are added to the table which do not contain the secondary index's sort key attribute.
-If unsure about which indexes may be considered non-sparse, then the default behavior is recommended.
+If unsure about which indexes may be considered non-sparse, then it is recommended not to change `SecondaryIndexSparsenessThreshold`.
