@@ -14,26 +14,30 @@ to automatically select a query index based on viability and scoring against a p
 
 ## Executing a query
 
-1) Initialize an `autoquery.Client` instance using a DynamoDB service instance.
+1) Initialize an `autoquery` client instance using a DynamoDB service instance.
 
 ```go
 svc := dynamodb.New(session.New())
-aq := autoquery.NewClient(svc)
+client := autoquery.NewClient(svc)
 ```
 
-2) Build an `autoquery.Expression`, and initialize a new query parser using the client.
+2) Build an expression with any desired filter conditions.
 
 ```go
 expr := autoquery.Key("director").Equal("Clint Eastwood").
     And("title").BeginsWith("The ").
     OrderBy("rating", false). // high to low
     Select("title", "year", "rating")
-
-tableName := "Movies"
-parser := aq.NewQuery(tableName, expr)
 ```
 
-3) Parse result items using the `autoquery.Parser` instance.
+3) Apply the expression on a table to initialize the query result parser.
+
+```go
+tableName := "Movies"
+parser := client.Query(tableName, expr)
+```
+
+4) Parse result items.
 
 ```go
 var movie struct {
