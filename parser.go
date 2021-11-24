@@ -36,7 +36,7 @@ type Parser struct {
 // On the first call to Next with a new table, the table's index metadata will be retrieved using
 // the underlying metadata provider. For the default client created by NewClient, this requires
 // IAM permissions to describe the table. The metadata is cached for subsequent queries to the
-// table through the client instance used in the call to NewQuery.
+// table through the client instance used in the call to Query.
 //
 // The first call to Next on a new Parser always makes a query call to DynamoDB. The query
 // automatically selects an index based on the table metadata and any expression restrictions. On

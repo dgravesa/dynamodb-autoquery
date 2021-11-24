@@ -15,7 +15,7 @@ func (e ErrParsingComplete) Error() string {
 	return fmt.Sprintf("parsing complete: %s", e.reason)
 }
 
-// ErrNoViableIndexes is returned by Client.NewQuery when no table indexes are usable for the
+// ErrNoViableIndexes is returned by Client.Query when no table indexes are usable for the
 // requested expression. The string returned by ErrNoViableIndexes.Error includes reasons why each
 // index is considered non-viable.
 type ErrNoViableIndexes struct {

@@ -30,7 +30,7 @@ expr := autoquery.Key("director").Equal("Clint Eastwood").
     Select("title", "year", "rating")
 
 tableName := "Movies"
-parser := aq.NewQuery(tableName, expr)
+parser := aq.Query(tableName, expr)
 ```
 
 3) Parse result items using the `autoquery.Parser` instance.

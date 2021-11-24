@@ -70,14 +70,14 @@ func NewClientWithMetadataProvider(
 	}
 }
 
-// NewQuery initializes a query defined by expr on a table. The returned parser may be used to
+// Query initializes a query defined by expr on a table. The returned parser may be used to
 // retrieve items using Parser.Next.
 //
 // On the first call to a new table, the client will populate the table's index metadata using
 // the underlying metadata provider. The metadata is cached for subsequent queries to the table
 // through the same Client instance. The query automatically selects an index based on the table
 // metadata and any expression restrictions.
-func (client *Client) NewQuery(tableName string, expr *Expression) *Parser {
+func (client *Client) Query(tableName string, expr *Expression) *Parser {
 	return &Parser{
 		client:        client,
 		tableName:     tableName,
