@@ -7,7 +7,9 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 )
 
@@ -68,6 +70,45 @@ func NewClientWithMetadataProvider(
 		// by default, all secondary indexes are considered sparse
 		SecondaryIndexSparsenessThreshold: 1.1,
 	}
+}
+
+// Get retrieves a single item by its key. The key is specified in itemKey and should be a struct
+// with the appropriate dynamodbav attribute tags pertaining to the table's primary key.
+// The item is returned in returnItem, which should have dynamodbav attribute tags pertaining to
+// the desired return attributes in the table.
+func (client *Client) Get(ctx context.Context, tableName string, itemKey,
+	returnItem interface{}) error {
+
+	key, err := dynamodbattribute.MarshalMap(itemKey)
+	if err != nil {
+		return err
+	}
+
+	response, err := client.dynamodbService.GetItemWithContext(ctx, &dynamodb.GetItemInput{
+		TableName: aws.String(tableName),
+		Key:       key,
+	})
+	if err != nil {
+		return err
+	}
+
+	return dynamodbattribute.UnmarshalMap(response.Item, returnItem)
+}
+
+// Put inserts a new item into the table, or replaces it if an item with the same primary key
+// already exists. The item should be a struct with the appropriate dynamodbav attribute tags.
+func (client *Client) Put(ctx context.Context, tableName string, item interface{}) error {
+	tableItem, err := dynamodbattribute.MarshalMap(item)
+	if err != nil {
+		return err
+	}
+
+	_, err = client.dynamodbService.PutItemWithContext(ctx, &dynamodb.PutItemInput{
+		TableName: aws.String(tableName),
+		Item:      tableItem,
+	})
+
+	return err
 }
 
 // Query initializes a query defined by expr on a table. The returned parser may be used to
