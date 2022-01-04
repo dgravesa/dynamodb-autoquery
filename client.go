@@ -76,6 +76,8 @@ func NewClientWithMetadataProvider(
 // with the appropriate dynamodbav attribute tags pertaining to the table's primary key.
 // The item is returned in returnItem, which should have dynamodbav attribute tags pertaining to
 // the desired return attributes in the table.
+//
+// If the item is not found, an *ErrItemNotFound instance is returned.
 func (client *Client) Get(ctx context.Context, tableName string, itemKey,
 	returnItem interface{}) error {
 
