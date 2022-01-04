@@ -92,6 +92,10 @@ func (client *Client) Get(ctx context.Context, tableName string, itemKey,
 		return err
 	}
 
+	if response.Item == nil {
+		return &ErrItemNotFound{}
+	}
+
 	return dynamodbattribute.UnmarshalMap(response.Item, returnItem)
 }
 

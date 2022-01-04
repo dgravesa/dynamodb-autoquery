@@ -44,3 +44,10 @@ func (e ErrIndexNotViable) Error() string {
 	reasonsJSON := string(bytes)
 	return fmt.Sprintf("index not viable for expression: %s", reasonsJSON)
 }
+
+// ErrItemNotFound is returned by Get when an item with the provided key is not found in the table.
+type ErrItemNotFound struct{}
+
+func (ErrItemNotFound) Error() string {
+	return "item not found"
+}
